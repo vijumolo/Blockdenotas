@@ -626,6 +626,7 @@
 
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     @keyframes fadeOut { to { opacity: 0; transform: translateY(10px); } }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
     /* ========== MOBILE OVERLAY ========== */
     .sidebar-overlay {
@@ -907,30 +908,134 @@
   <!-- TOAST CONTAINER -->
   <div class="toast-container" id="toastContainer"></div>
 
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
   <script>
+    // ========== FIREBASE CONFIG ==========
+    const firebaseConfig = {
+      apiKey: "AIzaSyB63PQlOqPNuNn3rYp1c6JIjpwHH5JUzrk",
+      authDomain: "freenotes-838fb.firebaseapp.com",
+      projectId: "freenotes-838fb",
+      storageBucket: "freenotes-838fb.firebasestorage.app",
+      messagingSenderId: "832900084340",
+      appId: "1:832900084340:web:1994d518d101460981d721"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
     // ========== STATE ==========
-    let notes = JSON.parse(localStorage.getItem('freenotes') || '[]');
+    let notes = [];
     let currentFilter = 'all';
     let currentSort = 'newest';
     let currentNoteId = null;
     let deleteTargetId = null;
     let saveTimeout = null;
     let searchQuery = '';
+    let unsubscribe = null;
+
+    // ========== FIREBASE HELPERS ==========
+    function getNotesCollection() {
+      return db.collection('notes');
+    }
+
+    async function initFirebase() {
+      // Enable offline persistence
+      db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+        console.warn('Offline persistence unavailable:', err.code);
+      });
+
+      // Start listening for notes
+      startNotesListener();
+    }
+
+    function startNotesListener() {
+      if (unsubscribe) unsubscribe();
+      unsubscribe = getNotesCollection()
+        .orderBy('updatedAt', 'desc')
+        .onSnapshot(snapshot => {
+          notes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          renderNotes();
+          updateCounts();
+        }, error => {
+          console.error('Firestore error:', error);
+          showToast('⚠️ Error de conexión');
+        });
+    }
+
+    async function saveNoteToFirestore(note) {
+      try {
+        await getNotesCollection().doc(note.id).set({
+          title: note.title,
+          content: note.content,
+          category: note.category,
+          pinned: note.pinned,
+          createdAt: note.createdAt,
+          updatedAt: note.updatedAt
+        });
+      } catch (err) {
+        console.error('Save error:', err);
+        showToast('⚠️ Error al guardar');
+      }
+    }
+
+    async function deleteNoteFromFirestore(noteId) {
+      try {
+        await getNotesCollection().doc(noteId).delete();
+      } catch (err) {
+        console.error('Delete error:', err);
+      }
+    }
+
+    async function migrateLocalStorage() {
+      const localNotes = JSON.parse(localStorage.getItem('freenotes') || '[]');
+      if (localNotes.length === 0) return;
+
+      showToast('📦 Migrando notas locales...');
+      for (const note of localNotes) {
+        await getNotesCollection().doc(note.id).set({
+          title: note.title || '',
+          content: note.content || '',
+          category: note.category || 'trabajo',
+          pinned: note.pinned || false,
+          createdAt: note.createdAt || Date.now(),
+          updatedAt: note.updatedAt || Date.now()
+        });
+      }
+      localStorage.removeItem('freenotes');
+      showToast('✅ Notas migradas exitosamente');
+    }
 
     // ========== INIT ==========
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       const theme = localStorage.getItem('freenotes-theme') || 'light';
       document.documentElement.setAttribute('data-theme', theme);
       updateThemeIcon();
 
-      const samplesShown = localStorage.getItem('freenotes-samples-shown');
-      if (notes.length === 0 && !samplesShown) {
-        createSampleNotes();
-        localStorage.setItem('freenotes-samples-shown', '1');
-      }
+      // Show loading state
+      document.getElementById('notesGrid').innerHTML = `
+        <div class="empty-state" style="grid-column:1/-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="animation:spin 1s linear infinite">
+            <path d="M21 12a9 9 0 11-6.219-8.56"/>
+          </svg>
+          <h3>Conectando...</h3>
+          <p>Estableciendo conexión con la base de datos</p>
+        </div>`;
 
-      renderNotes();
-      updateCounts();
+      try {
+        await initFirebase();
+        // Migrate any existing localStorage notes
+        await migrateLocalStorage();
+      } catch (err) {
+        console.error('Init error:', err);
+        // Fallback to localStorage
+        notes = JSON.parse(localStorage.getItem('freenotes') || '[]');
+        if (notes.length === 0) createSampleNotes();
+        renderNotes();
+        updateCounts();
+        showToast('⚠️ Modo sin conexión');
+      }
     });
 
     document.getElementById('searchInput').addEventListener('input', (e) => {
@@ -946,55 +1051,25 @@
     });
 
     // ========== SAMPLE NOTES ==========
-    function createSampleNotes() {
-      notes = [
-        {
-          id: genId(),
-          title: 'Reunión de equipo - Lunes',
-          content: 'Temas a tratar:\n• Revisión del sprint actual\n• Asignación de tareas pendientes\n• Fecha de entrega del proyecto X\n• Presupuesto para Q3',
-          category: 'reuniones',
-          pinned: true,
-          createdAt: Date.now(),
-          updatedAt: Date.now()
-        },
-        {
-          id: genId(),
-          title: 'Pendientes de la semana',
-          content: '☐ Enviar informe mensual\n☐ Revisar contratos con proveedores\n☐ Actualizar base de datos de clientes\n☐ Programar reunión con dirección\n☑ Actualizar presentación Q2',
-          category: 'pendientes',
-          pinned: false,
-          createdAt: Date.now() - 3600000,
-          updatedAt: Date.now() - 3600000
-        },
-        {
-          id: genId(),
-          title: 'Ideas para mejora de procesos',
-          content: '1. Automatizar reportes con herramientas digitales\n2. Crear plantillas estándar para documentos frecuentes\n3. Implementar sistema de seguimiento de tareas en equipo\n4. Capacitación en nuevas herramientas de productividad',
-          category: 'ideas',
-          pinned: false,
-          createdAt: Date.now() - 7200000,
-          updatedAt: Date.now() - 7200000
-        },
-        {
-          id: genId(),
-          title: 'Datos de contacto proveedores',
-          content: '• Distribuidora Central: (555) 123-4567\n  Contacto: María López\n  Email: maria@dcentral.com\n\n• Tech Solutions SA: (555) 987-6543\n  Contacto: Carlos Ruiz\n  Email: carlos@techsol.com',
-          category: 'trabajo',
-          pinned: false,
-          createdAt: Date.now() - 86400000,
-          updatedAt: Date.now() - 86400000
-        },
-        {
-          id: genId(),
-          title: 'Recordatorio personal',
-          content: '• Renovar póliza de seguro antes del viernes\n• Cita odontológica martes 3:00 PM\n• Pagar servicios antes del 15\n• Llevar documentos al banco',
-          category: 'personal',
-          pinned: true,
-          createdAt: Date.now() - 172800000,
-          updatedAt: Date.now() - 172800000
-        }
+    async function createSampleNotes() {
+      const samples = [
+        { id: 'sample-1', title: 'Reunión de equipo - Lunes', content: 'Temas a tratar:\n• Revisión del sprint actual\n• Asignación de tareas pendientes\n• Fecha de entrega del proyecto X\n• Presupuesto para Q3', category: 'reuniones', pinned: true, createdAt: Date.now(), updatedAt: Date.now() },
+        { id: 'sample-2', title: 'Pendientes de la semana', content: '☐ Enviar informe mensual\n☐ Revisar contratos con proveedores\n☐ Actualizar base de datos de clientes\n☐ Programar reunión con dirección\n☑ Actualizar presentación Q2', category: 'pendientes', pinned: false, createdAt: Date.now() - 3600000, updatedAt: Date.now() - 3600000 },
+        { id: 'sample-3', title: 'Ideas para mejora de procesos', content: '1. Automatizar reportes con herramientas digitales\n2. Crear plantillas estándar para documentos frecuentes\n3. Implementar sistema de seguimiento de tareas en equipo\n4. Capacitación en nuevas herramientas de productividad', category: 'ideas', pinned: false, createdAt: Date.now() - 7200000, updatedAt: Date.now() - 7200000 },
+        { id: 'sample-4', title: 'Datos de contacto proveedores', content: '• Distribuidora Central: (555) 123-4567\n  Contacto: María López\n  Email: maria@dcentral.com\n\n• Tech Solutions SA: (555) 987-6543\n  Contacto: Carlos Ruiz\n  Email: carlos@techsol.com', category: 'trabajo', pinned: false, createdAt: Date.now() - 86400000, updatedAt: Date.now() - 86400000 },
+        { id: 'sample-5', title: 'Recordatorio personal', content: '• Renovar póliza de seguro antes del viernes\n• Cita odontológica martes 3:00 PM\n• Pagar servicios antes del 15\n• Llevar documentos al banco', category: 'personal', pinned: true, createdAt: Date.now() - 172800000, updatedAt: Date.now() - 172800000 }
       ];
-      saveNotes();
+      for (const s of samples) {
+        await saveNoteToFirestore(s);
+      }
+    }
+
+    async function deleteAllNotes() {
+      const batch = db.batch();
+      notes.forEach(n => batch.delete(getNotesCollection().doc(n.id)));
+      await batch.commit();
+      closeEditor();
+      showToast('🗑️ Todas las notas eliminadas');
     }
 
     // ========== UTILS ==========
@@ -1018,7 +1093,8 @@
     }
 
     function saveNotes() {
-      localStorage.setItem('freenotes', JSON.stringify(notes));
+      // Firestore handles saving via saveNoteToFirestore
+      // This function is kept for compatibility but no longer saves to localStorage
     }
 
     // ========== THEME ==========
@@ -1191,10 +1267,12 @@
         createdAt: Date.now(),
         updatedAt: Date.now()
       };
+      // Add to local array immediately for instant UI feedback
       notes.unshift(note);
-      saveNotes();
-      openNote(note.id);
+      // Save to Firestore (real-time listener will keep in sync)
+      saveNoteToFirestore(note);
       renderNotes();
+      openNote(note.id);
       closeSidebar();
       document.getElementById('noteTitle').focus();
       showToast('📝 Nueva nota creada');
@@ -1248,8 +1326,8 @@
         note.title = document.getElementById('noteTitle').value;
         note.content = document.getElementById('noteContent').innerHTML;
         note.updatedAt = Date.now();
-        saveNotes();
-        renderNotes();
+        // Save to Firestore
+        saveNoteToFirestore(note);
 
         saveDot.classList.remove('saving');
         saveText.textContent = 'Guardado';
@@ -1265,8 +1343,7 @@
         if (note) {
           note.category = cat;
           note.updatedAt = Date.now();
-          saveNotes();
-          renderNotes();
+          saveNoteToFirestore(note);
         }
       }
     }
@@ -1276,8 +1353,7 @@
       if (note) {
         note.pinned = !note.pinned;
         note.updatedAt = Date.now();
-        saveNotes();
-        renderNotes();
+        saveNoteToFirestore(note);
         showToast(note.pinned ? '📌 Nota fijada' : '📌 Nota desfijada');
       }
     }
@@ -1290,10 +1366,8 @@
 
     function confirmDelete() {
       if (deleteTargetId) {
-        notes = notes.filter(n => n.id !== deleteTargetId);
-        saveNotes();
+        deleteNoteFromFirestore(deleteTargetId);
         if (currentNoteId === deleteTargetId) closeEditor();
-        renderNotes();
         showToast('🗑️ Nota eliminada');
       }
       closeModal();
