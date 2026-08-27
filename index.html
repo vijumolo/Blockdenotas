@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FreeNotes — Block de Notas</title>
+  <style>
+    /* ========== RESET & BASE ========== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f5f7;
+      --bg-card: #ffffff;
+      --bg-sidebar: #1d1d1f;
+      --bg-input: #f0f0f2;
+      --text: #1d1d1f;
+      --text-secondary: #6e6e73;
+      --text-sidebar: #f5f5f7;
+      --accent: #0071e3;
+      --accent-hover: #0077ED;
+      --danger: #ff3b30;
+      --danger-hover: #ff453a;
+      --success: #34c759;
+      --warning: #ff9f0a;
+      --border: #d2d2d7;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+      --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      --cat-trabajo: #0071e3;
+      --cat-reuniones: #af52de;
+      --cat-pendientes: #ff9f0a;
+      --cat-ideas: #34c759;
+      --cat-personal: #ff2d55;
+    }
+
+    [data-theme="dark"] {
+      --bg: #000000;
+      --bg-card: #1c1c1e;
+      --bg-sidebar: #000000;
+      --bg-input: #2c2c2e;
+      --text: #f5f5f7;
+      --text-secondary: #98989d;
+      --border: #38383a;
+      --shadow: 0 2px 12px rgba(0,0,0,0.3);
+      --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+    }
+
+    html { font-size: 16px; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      overflow: hidden;
+      height: 100vh;
+      transition: background var(--transition), color var(--transition);
+    }
+
+    /* ========== LAYOUT ========== */
+    .app {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ========== SIDEBAR ========== */
+    .sidebar {
+      width: 260px;
+      background: var(--bg-sidebar);
+      color: var(--text-sidebar);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      transition: transform var(--transition);
+      z-index: 100;
+    }
+
+    .sidebar-header {
+      padding: 24px 20px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .logo svg { width: 28px; height: 28px; }
+
+    .sidebar-search {
+      padding: 16px 20px 8px;
+    }
+
+    .sidebar-search input {
+      width: 100%;
+      padding: 10px 14px 10px 36px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: rgba(255,255,255,0.12);
+      color: var(--text-sidebar);
+      font-size: 0.875rem;
+      outline: none;
+      transition: background var(--transition);
+    }
+
+    .sidebar-search input::placeholder { color: rgba(255,255,255,0.4); }
+    .sidebar-search input:focus { background: rgba(255,255,255,0.18); }
+
+    .sidebar-search { position: relative; }
+    .sidebar-search svg {
+      position: absolute;
+      left: 32px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px; height: 16px;
+      opacity: 0.4;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+
+    .sidebar-nav::-webkit-scrollbar { width: 4px; }
+    .sidebar-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+
+    .nav-section {
+      padding: 8px 20px 4px;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(255,255,255,0.35);
+      font-weight: 600;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 20px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      color: rgba(255,255,255,0.7);
+      transition: all var(--transition);
+      border-left: 3px solid transparent;
+    }
+
+    .nav-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.95); }
+    .nav-item.active { background: rgba(255,255,255,0.1); color: #fff; border-left-color: var(--accent); }
+
+    .nav-item svg { width: 18px; height: 18px; opacity: 0.6; flex-shrink: 0; }
+    .nav-item.active svg { opacity: 1; }
+
+    .nav-item .count {
+      margin-left: auto;
+      background: rgba(255,255,255,0.12);
+      padding: 1px 8px;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.5);
+    }
+
+    .nav-item.active .count { background: rgba(0,113,227,0.3); color: #fff; }
+
+    .cat-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .btn-new-note {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background var(--transition);
+    }
+
+    .btn-new-note:hover { background: var(--accent-hover); }
+    .btn-new-note svg { width: 18px; height: 18px; }
+
+    /* ========== MAIN CONTENT ========== */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .main-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      flex-shrink: 0;
+    }
+
+    .main-header h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-icon {
+      width: 36px; height: 36px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition);
+    }
+
+    .btn-icon:hover { background: var(--bg-input); color: var(--text); }
+    .btn-icon svg { width: 20px; height: 20px; }
+
+    .btn-menu { display: none; }
+
+    /* ========== NOTES LIST ========== */
+    .notes-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 24px;
+    }
+
+    .notes-list::-webkit-scrollbar { width: 6px; }
+    .notes-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .notes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .note-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      cursor: pointer;
+      transition: all var(--transition);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .note-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+      border-color: var(--accent);
+    }
+
+    .note-card.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(0,113,227,0.2);
+    }
+
+    .note-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .note-card-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      line-height: 1.3;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .note-pin {
+      color: var(--warning);
+      flex-shrink: 0;
+    }
+
+    .note-pin svg { width: 14px; height: 14px; }
+
+    .note-card-body {
+      font-size: 0.825rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      flex: 1;
+    }
+
+    .note-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .note-card-date {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      opacity: 0.7;
+    }
+
+    .note-card-cat {
+      font-size: 0.65rem;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .note-card-actions {
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity var(--transition);
+    }
+
+    .note-card:hover .note-card-actions { opacity: 1; }
+
+    .note-card-actions .btn-icon {
+      width: 28px; height: 28px;
+    }
+
+    .note-card-actions .btn-icon svg { width: 14px; height: 14px; }
+
+    .btn-delete-note { color: var(--danger); }
+    .btn-delete-note:hover { background: rgba(255,59,48,0.1); color: var(--danger); }
+
+    /* ========== EMPTY STATE ========== */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 40px;
+      text-align: center;
+      color: var(--text-secondary);
+    }
+
+    .empty-state svg { width: 80px; height: 80px; opacity: 0.3; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 1.1rem; margin-bottom: 8px; color: var(--text); }
+    .empty-state p { font-size: 0.875rem; max-width: 300px; }
+
+    /* ========== EDITOR PANEL ========== */
+    .editor-panel {
+      width: 420px;
+      background: var(--bg-card);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      transition: all var(--transition);
+    }
+
+    .editor-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .editor-header h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .editor-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .editor-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 8px 20px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .toolbar-btn {
+      width: 32px; height: 32px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition);
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .toolbar-btn:hover { background: var(--bg-input); color: var(--text); }
+    .toolbar-btn.active { background: var(--accent); color: #fff; }
+    .toolbar-btn svg { width: 16px; height: 16px; }
+
+    .toolbar-sep {
+      width: 1px;
+      height: 20px;
+      background: var(--border);
+      margin: 0 4px;
+    }
+
+    .editor-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .editor-body::-webkit-scrollbar { width: 6px; }
+    .editor-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .field-group { display: flex; flex-direction: column; gap: 6px; }
+
+    .field-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-secondary);
+    }
+
+    .field-title {
+      width: 100%;
+      border: none;
+      background: transparent;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text);
+      outline: none;
+      padding: 4px 0;
+      letter-spacing: -0.02em;
+    }
+
+    .field-title::placeholder { color: var(--text-secondary); opacity: 0.5; }
+
+    .field-category {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .cat-chip {
+      padding: 4px 12px;
+      border-radius: 16px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all var(--transition);
+      color: #fff;
+      opacity: 0.5;
+    }
+
+    .cat-chip:hover { opacity: 0.8; }
+    .cat-chip.active { opacity: 1; border-color: var(--text); transform: scale(1.05); }
+
+    .field-content {
+      width: 100%;
+      min-height: 250px;
+      border: none;
+      background: transparent;
+      font-size: 0.95rem;
+      color: var(--text);
+      outline: none;
+      resize: none;
+      line-height: 1.7;
+      font-family: inherit;
+    }
+
+    .field-content::placeholder { color: var(--text-secondary); opacity: 0.5; }
+
+    .editor-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .editor-footer .save-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .save-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--success);
+    }
+
+    .save-dot.saving { background: var(--warning); animation: pulse 1s infinite; }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* ========== MODAL ========== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all var(--transition);
+      padding: 20px;
+    }
+
+    .modal-overlay.active { opacity: 1; visibility: visible; }
+
+    .modal {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 28px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: var(--shadow-lg);
+      transform: scale(0.95);
+      transition: transform var(--transition);
+    }
+
+    .modal-overlay.active .modal { transform: scale(1); }
+
+    .modal h3 { font-size: 1.1rem; margin-bottom: 8px; }
+    .modal p { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 20px; }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 8px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all var(--transition);
+    }
+
+    .btn-cancel { background: var(--bg-input); color: var(--text); }
+    .btn-cancel:hover { background: var(--border); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:hover { background: var(--danger-hover); }
+
+    /* ========== TOAST ========== */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 20px;
+      box-shadow: var(--shadow-lg);
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s;
+      min-width: 200px;
+    }
+
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes fadeOut { to { opacity: 0; transform: translateY(10px); } }
+
+    /* ========== MOBILE OVERLAY ========== */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 99;
+    }
+
+    .sidebar-overlay.active { display: block; }
+
+    /* ========== SORT DROPDOWN ========== */
+    .sort-dropdown {
+      position: relative;
+    }
+
+    .sort-menu {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 4px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-lg);
+      min-width: 180px;
+      z-index: 50;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      transition: all var(--transition);
+    }
+
+    .sort-menu.active { opacity: 1; visibility: visible; transform: translateY(0); }
+
+    .sort-option {
+      padding: 10px 16px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background var(--transition);
+    }
+
+    .sort-option:hover { background: var(--bg-input); }
+    .sort-option.active { color: var(--accent); font-weight: 600; }
+
+    .sort-option:first-child { border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+    .sort-option:last-child { border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
+
+    /* ========== RESPONSIVE ========== */
+    @media (max-width: 1024px) {
+      .editor-panel { width: 360px; }
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        position: fixed;
+        left: 0; top: 0; bottom: 0;
+        transform: translateX(-100%);
+      }
+      .sidebar.open { transform: translateX(0); }
+      .btn-menu { display: flex; }
+      .editor-panel {
+        position: fixed;
+        right: 0; top: 0; bottom: 0;
+        width: 100%;
+        transform: translateX(100%);
+        z-index: 200;
+        background: var(--bg);
+      }
+      .editor-panel.open { transform: translateX(0); }
+      .notes-grid { grid-template-columns: 1fr; }
+      .main-header { padding: 12px 16px; }
+      .notes-list { padding: 12px 16px; }
+    }
+
+    @media (max-width: 480px) {
+      .note-card { padding: 14px; }
+      .editor-body { padding: 16px; }
+    }
+
+    /* ========== WORD COUNT BAR ========== */
+    .word-count-bar {
+      display: flex;
+      gap: 16px;
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+          FreeNotes
+        </div>
+      </div>
+
+      <div class="sidebar-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" placeholder="Buscar notas...">
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section">Vistas</div>
+        <div class="nav-item active" data-filter="all" onclick="setFilter('all', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Todas las notas
+          <span class="count" id="countAll">0</span>
+        </div>
+        <div class="nav-item" data-filter="pinned" onclick="setFilter('pinned', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L12 22"/><path d="M5 12l7-7 7 7"/></svg>
+          Fijadas
+          <span class="count" id="countPinned">0</span>
+        </div>
+
+        <div class="nav-section">Categorías</div>
+        <div class="nav-item" data-filter="trabajo" onclick="setFilter('trabajo', this)">
+          <span class="cat-dot" style="background:var(--cat-trabajo)"></span>
+          Trabajo
+          <span class="count" id="countTrabajo">0</span>
+        </div>
+        <div class="nav-item" data-filter="reuniones" onclick="setFilter('reuniones', this)">
+          <span class="cat-dot" style="background:var(--cat-reuniones)"></span>
+          Reuniones
+          <span class="count" id="countReuniones">0</span>
+        </div>
+        <div class="nav-item" data-filter="pendientes" onclick="setFilter('pendientes', this)">
+          <span class="cat-dot" style="background:var(--cat-pendientes)"></span>
+          Pendientes
+          <span class="count" id="countPendientes">0</span>
+        </div>
+        <div class="nav-item" data-filter="ideas" onclick="setFilter('ideas', this)">
+          <span class="cat-dot" style="background:var(--cat-ideas)"></span>
+          Ideas
+          <span class="count" id="countIdeas">0</span>
+        </div>
+        <div class="nav-item" data-filter="personal" onclick="setFilter('personal', this)">
+          <span class="cat-dot" style="background:var(--cat-personal)"></span>
+          Personal
+          <span class="count" id="countPersonal">0</span>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="btn-new-note" onclick="createNewNote()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nueva nota
+        </button>
+      </div>
+    </aside>
+
+    <!-- SIDEBAR OVERLAY (mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+    <!-- MAIN CONTENT -->
+    <main class="main">
+      <div class="main-header">
+        <div style="display:flex;align-items:center;gap:12px">
+          <button class="btn-icon btn-menu" onclick="toggleSidebar()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <h2 id="filterTitle">Todas las notas</h2>
+        </div>
+        <div class="header-actions">
+          <div class="sort-dropdown">
+            <button class="btn-icon" onclick="toggleSort()" title="Ordenar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="16" y2="6"/><line x1="4" y1="12" x2="12" y2="12"/><line x1="4" y1="18" x2="8" y2="18"/><polyline points="18 15 21 18 18 21"/><line x1="21" y1="9" x2="21" y2="18"/></svg>
+            </button>
+            <div class="sort-menu" id="sortMenu">
+              <div class="sort-option active" data-sort="newest" onclick="setSort('newest')">Más recientes</div>
+              <div class="sort-option" data-sort="oldest" onclick="setSort('oldest')">Más antiguas</div>
+              <div class="sort-option" data-sort="alpha" onclick="setSort('alpha')">A → Z</div>
+              <div class="sort-option" data-sort="alpha-rev" onclick="setSort('alpha-rev')">Z → A</div>
+            </div>
+          </div>
+          <button class="btn-icon" onclick="toggleTheme()" title="Cambiar tema" id="themeBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="notes-list" id="notesList">
+        <div class="notes-grid" id="notesGrid"></div>
+      </div>
+    </main>
+
+    <!-- EDITOR PANEL -->
+    <div class="editor-panel" id="editorPanel">
+      <div class="editor-header">
+        <h3 id="editorTitle">Nueva nota</h3>
+        <div class="editor-actions">
+          <button class="btn-icon" onclick="exportNote()" title="Exportar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </button>
+          <button class="btn-icon btn-close-editor" onclick="closeEditor()" title="Cerrar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="editor-toolbar">
+        <button class="toolbar-btn" onclick="formatText('bold')" title="Negrita"><b>B</b></button>
+        <button class="toolbar-btn" onclick="formatText('italic')" title="Cursiva"><i>I</i></button>
+        <button class="toolbar-btn" onclick="formatText('underline')" title="Subrayado"><u>U</u></button>
+        <div class="toolbar-sep"></div>
+        <button class="toolbar-btn" onclick="formatText('insertUnorderedList')" title="Lista">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        </button>
+        <button class="toolbar-btn" onclick="formatText('insertOrderedList')" title="Lista numerada">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><text x="2" y="8" font-size="7" fill="currentColor" stroke="none" font-weight="700">1</text><text x="2" y="14" font-size="7" fill="currentColor" stroke="none" font-weight="700">2</text><text x="2" y="20" font-size="7" fill="currentColor" stroke="none" font-weight="700">3</text></svg>
+        </button>
+        <div class="toolbar-sep"></div>
+        <button class="toolbar-btn" onclick="formatText('strikeThrough')" title="Tachado">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4H9a3 3 0 0 0-3 3v0a3 3 0 0 0 3 3h6a3 3 0 0 1 3 3v0a3 3 0 0 1-3 3H8"/><line x1="4" y1="12" x2="20" y2="12"/></svg>
+        </button>
+      </div>
+
+      <div class="editor-body">
+        <div class="field-group">
+          <input type="text" class="field-title" id="noteTitle" placeholder="Título de la nota..." oninput="autoSave()">
+        </div>
+
+        <div class="field-group">
+          <span class="field-label">Categoría</span>
+          <div class="field-category" id="catChips">
+            <span class="cat-chip active" data-cat="trabajo" style="background:var(--cat-trabajo)" onclick="setCategory('trabajo', this)">Trabajo</span>
+            <span class="cat-chip" data-cat="reuniones" style="background:var(--cat-reuniones)" onclick="setCategory('reuniones', this)">Reuniones</span>
+            <span class="cat-chip" data-cat="pendientes" style="background:var(--cat-pendientes)" onclick="setCategory('pendientes', this)">Pendientes</span>
+            <span class="cat-chip" data-cat="ideas" style="background:var(--cat-ideas)" onclick="setCategory('ideas', this)">Ideas</span>
+            <span class="cat-chip" data-cat="personal" style="background:var(--cat-personal)" onclick="setCategory('personal', this)">Personal</span>
+          </div>
+        </div>
+
+        <div class="field-group" style="flex:1">
+          <span class="field-label">Contenido</span>
+          <div class="field-content" id="noteContent" contenteditable="true" oninput="autoSave()" placeholder="Escribe tu nota aquí..."></div>
+        </div>
+      </div>
+
+      <div class="editor-footer">
+        <div class="save-status">
+          <span class="save-dot" id="saveDot"></span>
+          <span id="saveText">Guardado</span>
+        </div>
+        <div class="word-count-bar">
+          <span id="wordCount">0 palabras</span>
+          <span id="charCount">0 caracteres</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DELETE MODAL -->
+  <div class="modal-overlay" id="deleteModal">
+    <div class="modal">
+      <h3>Eliminar nota</h3>
+      <p>¿Estás seguro de que deseas eliminar esta nota? Esta acción no se puede deshacer.</p>
+      <div class="modal-actions">
+        <button class="btn btn-cancel" onclick="closeModal()">Cancelar</button>
+        <button class="btn btn-danger" onclick="confirmDelete()">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    // ========== STATE ==========
+    let notes = JSON.parse(localStorage.getItem('freenotes') || '[]');
+    let currentFilter = 'all';
+    let currentSort = 'newest';
+    let currentNoteId = null;
+    let deleteTargetId = null;
+    let saveTimeout = null;
+    let searchQuery = '';
+
+    // ========== INIT ==========
+    document.addEventListener('DOMContentLoaded', () => {
+      const theme = localStorage.getItem('freenotes-theme') || 'light';
+      document.documentElement.setAttribute('data-theme', theme);
+      updateThemeIcon();
+
+      if (notes.length === 0) {
+        createSampleNotes();
+      }
+
+      renderNotes();
+      updateCounts();
+    });
+
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      searchQuery = e.target.value.toLowerCase();
+      renderNotes();
+    });
+
+    // Close sort menu on outside click
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.sort-dropdown')) {
+        document.getElementById('sortMenu').classList.remove('active');
+      }
+    });
+
+    // ========== SAMPLE NOTES ==========
+    function createSampleNotes() {
+      notes = [
+        {
+          id: genId(),
+          title: 'Reunión de equipo - Lunes',
+          content: 'Temas a tratar:\n• Revisión del sprint actual\n• Asignación de tareas pendientes\n• Fecha de entrega del proyecto X\n• Presupuesto para Q3',
+          category: 'reuniones',
+          pinned: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        },
+        {
+          id: genId(),
+          title: 'Pendientes de la semana',
+          content: '☐ Enviar informe mensual\n☐ Revisar contratos con proveedores\n☐ Actualizar base de datos de clientes\n☐ Programar reunión con dirección\n☑ Actualizar presentación Q2',
+          category: 'pendientes',
+          pinned: false,
+          createdAt: Date.now() - 3600000,
+          updatedAt: Date.now() - 3600000
+        },
+        {
+          id: genId(),
+          title: 'Ideas para mejora de procesos',
+          content: '1. Automatizar reportes con herramientas digitales\n2. Crear plantillas estándar para documentos frecuentes\n3. Implementar sistema de seguimiento de tareas en equipo\n4. Capacitación en nuevas herramientas de productividad',
+          category: 'ideas',
+          pinned: false,
+          createdAt: Date.now() - 7200000,
+          updatedAt: Date.now() - 7200000
+        },
+        {
+          id: genId(),
+          title: 'Datos de contacto proveedores',
+          content: '• Distribuidora Central: (555) 123-4567\n  Contacto: María López\n  Email: maria@dcentral.com\n\n• Tech Solutions SA: (555) 987-6543\n  Contacto: Carlos Ruiz\n  Email: carlos@techsol.com',
+          category: 'trabajo',
+          pinned: false,
+          createdAt: Date.now() - 86400000,
+          updatedAt: Date.now() - 86400000
+        },
+        {
+          id: genId(),
+          title: 'Recordatorio personal',
+          content: '• Renovar póliza de seguro antes del viernes\n• Cita odontológica martes 3:00 PM\n• Pagar servicios antes del 15\n• Llevar documentos al banco',
+          category: 'personal',
+          pinned: true,
+          createdAt: Date.now() - 172800000,
+          updatedAt: Date.now() - 172800000
+        }
+      ];
+      saveNotes();
+    }
+
+    // ========== UTILS ==========
+    function genId() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 5); }
+
+    function formatDate(ts) {
+      const d = new Date(ts);
+      const now = new Date();
+      const diff = now - d;
+      if (diff < 60000) return 'Ahora mismo';
+      if (diff < 3600000) return `Hace ${Math.floor(diff / 60000)} min`;
+      if (diff < 86400000) return `Hace ${Math.floor(diff / 3600000)}h`;
+      if (diff < 172800000) return 'Ayer';
+      return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
+    }
+
+    function stripHtml(html) {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      return tmp.textContent || tmp.innerText || '';
+    }
+
+    function saveNotes() {
+      localStorage.setItem('freenotes', JSON.stringify(notes));
+    }
+
+    // ========== THEME ==========
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('freenotes-theme', next);
+      updateThemeIcon();
+    }
+
+    function updateThemeIcon() {
+      const theme = document.documentElement.getAttribute('data-theme');
+      const btn = document.getElementById('themeBtn');
+      btn.innerHTML = theme === 'dark'
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+    }
+
+    // ========== SIDEBAR ==========
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+      document.getElementById('sidebarOverlay').classList.toggle('active');
+    }
+
+    function closeSidebar() {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('sidebarOverlay').classList.remove('active');
+    }
+
+    // ========== FILTER ==========
+    function setFilter(filter, el) {
+      currentFilter = filter;
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      el.classList.add('active');
+
+      const titles = {
+        all: 'Todas las notas',
+        pinned: 'Fijadas',
+        trabajo: 'Trabajo',
+        reuniones: 'Reuniones',
+        pendientes: 'Pendientes',
+        ideas: 'Ideas',
+        personal: 'Personal'
+      };
+      document.getElementById('filterTitle').textContent = titles[filter] || 'Notas';
+      renderNotes();
+      closeSidebar();
+    }
+
+    // ========== SORT ==========
+    function toggleSort() {
+      document.getElementById('sortMenu').classList.toggle('active');
+    }
+
+    function setSort(sort) {
+      currentSort = sort;
+      document.querySelectorAll('.sort-option').forEach(o => o.classList.remove('active'));
+      document.querySelector(`[data-sort="${sort}"]`).classList.add('active');
+      document.getElementById('sortMenu').classList.remove('active');
+      renderNotes();
+    }
+
+    // ========== RENDER ==========
+    function renderNotes() {
+      let filtered = [...notes];
+
+      // Filter
+      if (currentFilter === 'pinned') {
+        filtered = filtered.filter(n => n.pinned);
+      } else if (currentFilter !== 'all') {
+        filtered = filtered.filter(n => n.category === currentFilter);
+      }
+
+      // Search
+      if (searchQuery) {
+        filtered = filtered.filter(n =>
+          n.title.toLowerCase().includes(searchQuery) ||
+          stripHtml(n.content).toLowerCase().includes(searchQuery)
+        );
+      }
+
+      // Sort: pinned always first
+      filtered.sort((a, b) => {
+        if (a.pinned !== b.pinned) return b.pinned - a.pinned;
+        switch (currentSort) {
+          case 'newest': return b.updatedAt - a.updatedAt;
+          case 'oldest': return a.updatedAt - b.updatedAt;
+          case 'alpha': return a.title.localeCompare(b.title);
+          case 'alpha-rev': return b.title.localeCompare(a.title);
+          default: return b.updatedAt - a.updatedAt;
+        }
+      });
+
+      const grid = document.getElementById('notesGrid');
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `
+          <div class="empty-state" style="grid-column:1/-1">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+            <h3>${searchQuery ? 'Sin resultados' : 'No hay notas'}</h3>
+            <p>${searchQuery ? 'Intenta con otros términos de búsqueda' : 'Crea tu primera nota para comenzar'}</p>
+          </div>`;
+        return;
+      }
+
+      grid.innerHTML = filtered.map(note => {
+        const catColors = {
+          trabajo: 'var(--cat-trabajo)',
+          reuniones: 'var(--cat-reuniones)',
+          pendientes: 'var(--cat-pendientes)',
+          ideas: 'var(--cat-ideas)',
+          personal: 'var(--cat-personal)'
+        };
+        return `
+        <div class="note-card ${currentNoteId === note.id ? 'active' : ''}" onclick="openNote('${note.id}')">
+          <div class="note-card-header">
+            <div class="note-card-title">${escHtml(note.title) || 'Sin título'}</div>
+            ${note.pinned ? '<span class="note-pin"><svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg></span>' : ''}
+          </div>
+          <div class="note-card-body">${escHtml(stripHtml(note.content))}</div>
+          <div class="note-card-footer">
+            <span class="note-card-date">${formatDate(note.updatedAt)}</span>
+            <span class="note-card-cat" style="background:${catColors[note.category] || 'var(--cat-trabajo)'}">${note.category}</span>
+            <div class="note-card-actions">
+              <button class="btn-icon" onclick="event.stopPropagation();togglePin('${note.id}')" title="${note.pinned ? 'Desfijar' : 'Fijar'}">
+                <svg viewBox="0 0 24 24" fill="${note.pinned ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+              </button>
+              <button class="btn-icon btn-delete-note" onclick="event.stopPropagation();deleteNote('${note.id}')" title="Eliminar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+
+      updateCounts();
+    }
+
+    function escHtml(str) {
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    // ========== COUNTS ==========
+    function updateCounts() {
+      document.getElementById('countAll').textContent = notes.length;
+      document.getElementById('countPinned').textContent = notes.filter(n => n.pinned).length;
+      document.getElementById('countTrabajo').textContent = notes.filter(n => n.category === 'trabajo').length;
+      document.getElementById('countReuniones').textContent = notes.filter(n => n.category === 'reuniones').length;
+      document.getElementById('countPendientes').textContent = notes.filter(n => n.category === 'pendientes').length;
+      document.getElementById('countIdeas').textContent = notes.filter(n => n.category === 'ideas').length;
+      document.getElementById('countPersonal').textContent = notes.filter(n => n.category === 'personal').length;
+    }
+
+    // ========== CREATE / OPEN / CLOSE ==========
+    function createNewNote() {
+      const note = {
+        id: genId(),
+        title: '',
+        content: '',
+        category: 'trabajo',
+        pinned: false,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+      notes.unshift(note);
+      saveNotes();
+      openNote(note.id);
+      renderNotes();
+      closeSidebar();
+      document.getElementById('noteTitle').focus();
+      showToast('📝 Nueva nota creada');
+    }
+
+    function openNote(id) {
+      const note = notes.find(n => n.id === id);
+      if (!note) return;
+
+      currentNoteId = id;
+      document.getElementById('noteTitle').value = note.title;
+      document.getElementById('noteContent').innerHTML = note.content;
+      document.getElementById('editorTitle').textContent = note.title || 'Nueva nota';
+
+      // Set category chips
+      document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+      document.querySelector(`[data-cat="${note.category}"]`)?.classList.add('active');
+
+      updateWordCount();
+      renderNotes();
+
+      // Open editor on mobile
+      if (window.innerWidth <= 768) {
+        document.getElementById('editorPanel').classList.add('open');
+      }
+    }
+
+    function closeEditor() {
+      currentNoteId = null;
+      document.getElementById('editorPanel').classList.remove('open');
+      document.getElementById('noteTitle').value = '';
+      document.getElementById('noteContent').innerHTML = '';
+      document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+      document.querySelector('[data-cat="trabajo"]').classList.add('active');
+      renderNotes();
+    }
+
+    // ========== SAVE ==========
+    function autoSave() {
+      if (!currentNoteId) return;
+      const note = notes.find(n => n.id === currentNoteId);
+      if (!note) return;
+
+      const saveDot = document.getElementById('saveDot');
+      const saveText = document.getElementById('saveText');
+      saveDot.classList.add('saving');
+      saveText.textContent = 'Guardando...';
+
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(() => {
+        note.title = document.getElementById('noteTitle').value;
+        note.content = document.getElementById('noteContent').innerHTML;
+        note.updatedAt = Date.now();
+        saveNotes();
+        renderNotes();
+
+        saveDot.classList.remove('saving');
+        saveText.textContent = 'Guardado';
+        updateWordCount();
+      }, 400);
+    }
+
+    function setCategory(cat, el) {
+      document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+      if (currentNoteId) {
+        const note = notes.find(n => n.id === currentNoteId);
+        if (note) {
+          note.category = cat;
+          note.updatedAt = Date.now();
+          saveNotes();
+          renderNotes();
+        }
+      }
+    }
+
+    function togglePin(id) {
+      const note = notes.find(n => n.id === id);
+      if (note) {
+        note.pinned = !note.pinned;
+        note.updatedAt = Date.now();
+        saveNotes();
+        renderNotes();
+        showToast(note.pinned ? '📌 Nota fijada' : '📌 Nota desfijada');
+      }
+    }
+
+    // ========== DELETE ==========
+    function deleteNote(id) {
+      deleteTargetId = id;
+      document.getElementById('deleteModal').classList.add('active');
+    }
+
+    function confirmDelete() {
+      if (deleteTargetId) {
+        notes = notes.filter(n => n.id !== deleteTargetId);
+        saveNotes();
+        if (currentNoteId === deleteTargetId) closeEditor();
+        renderNotes();
+        showToast('🗑️ Nota eliminada');
+      }
+      closeModal();
+    }
+
+    function closeModal() {
+      document.getElementById('deleteModal').classList.remove('active');
+      deleteTargetId = null;
+    }
+
+    // ========== EXPORT ==========
+    function exportNote() {
+      if (!currentNoteId) return;
+      const note = notes.find(n => n.id === currentNoteId);
+      if (!note) return;
+
+      const text = `${note.title}\n${'='.repeat(note.title.length)}\n\n${stripHtml(note.content)}\n\n---\nCategoría: ${note.category} | Creado: ${new Date(note.createdAt).toLocaleString('es-ES')} | Modificado: ${new Date(note.updatedAt).toLocaleString('es-ES')}`;
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${note.title || 'nota'}-${new Date().toISOString().slice(0,10)}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('📥 Nota exportada');
+    }
+
+    // ========== FORMATTING ==========
+    function formatText(cmd) {
+      document.execCommand(cmd, false, null);
+      document.getElementById('noteContent').focus();
+      autoSave();
+    }
+
+    // ========== WORD COUNT ==========
+    function updateWordCount() {
+      const text = stripHtml(document.getElementById('noteContent').innerHTML).trim();
+      const words = text ? text.split(/\s+/).length : 0;
+      const chars = text.length;
+      document.getElementById('wordCount').textContent = `${words} palabra${words !== 1 ? 's' : ''}`;
+      document.getElementById('charCount').textContent = `${chars} carácter${chars !== 1 ? 'es' : ''}`;
+    }
+
+    // ========== TOAST ==========
+    function showToast(msg) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = msg;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    // ========== KEYBOARD SHORTCUTS ==========
+    document.addEventListener('keydown', (e) => {
+      // Ctrl/Cmd + N = New note
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        createNewNote();
+      }
+      // Ctrl/Cmd + F = Focus search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        if (document.activeElement.tagName !== 'INPUT' && !document.getElementById('noteContent').contains(document.activeElement)) {
+          e.preventDefault();
+          document.getElementById('searchInput').focus();
+        }
+      }
+      // Escape = Close editor / modal
+      if (e.key === 'Escape') {
+        if (document.getElementById('deleteModal').classList.contains('active')) {
+          closeModal();
+        } else if (currentNoteId && window.innerWidth <= 768) {
+          closeEditor();
+        }
+      }
+    });
+  </script>
+</body>
+</html>
