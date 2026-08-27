@@ -719,8 +719,13 @@
       .main-header h2 { font-size: 1rem; }
 
       .notes-list {
-        padding: 12px 14px;
+        padding: 12px 24px;
         padding-bottom: 80px;
+      }
+
+      .notes-grid {
+        max-width: 360px;
+        margin: 0 auto;
       }
 
       .note-card {
@@ -852,8 +857,9 @@
     }
 
     @media (max-width: 480px) {
-      .main-header { padding: 8px 12px; }
-      .notes-list { padding: 10px 12px; padding-bottom: 80px; }
+      .main-header { padding: 8px 16px; }
+      .notes-list { padding: 10px 16px; padding-bottom: 80px; }
+      .notes-grid { max-width: 320px; }
       .note-card { padding: 14px; border-radius: 12px; }
       .note-card-title { font-size: 0.95rem; }
       .editor-body { padding: 14px; }
