@@ -688,10 +688,13 @@
       .sidebar {
         position: fixed;
         left: 0; top: 0; bottom: 0;
+        width: 280px;
         transform: translateX(-100%);
+        z-index: 300;
       }
       .sidebar.open { transform: translateX(0); }
       .btn-menu { display: flex; }
+
       .editor-panel {
         position: fixed;
         right: 0; top: 0; bottom: 0;
@@ -699,17 +702,166 @@
         transform: translateX(100%);
         z-index: 200;
         background: var(--bg);
+        border-left: none;
       }
       .editor-panel.open { transform: translateX(0); }
-      .notes-grid { grid-template-columns: 1fr; }
-      .main-header { padding: 12px 16px; }
-      .notes-list { padding: 12px 16px; }
+
+      .notes-grid { grid-template-columns: 1fr; gap: 12px; }
+
+      .main-header {
+        padding: 10px 14px;
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: var(--bg);
+      }
+
+      .main-header h2 { font-size: 1rem; }
+
+      .notes-list {
+        padding: 12px 14px;
+        padding-bottom: 80px;
+      }
+
+      .note-card {
+        padding: 16px;
+        border-radius: 14px;
+        min-height: 80px;
+      }
+
+      .note-card-title {
+        font-size: 1rem;
+        white-space: normal;
+        -webkit-line-clamp: 2;
+      }
+
+      .note-card-body {
+        font-size: 0.85rem;
+        -webkit-line-clamp: 2;
+      }
+
+      .note-card-footer {
+        margin-top: 8px;
+      }
+
+      .note-card-actions {
+        opacity: 1 !important;
+        gap: 6px;
+      }
+
+      .note-card-actions .btn-icon {
+        width: 34px;
+        height: 34px;
+      }
+
+      .note-card-actions .btn-icon svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      .btn-new-note {
+        display: none;
+      }
+
+      .sidebar-footer {
+        padding: 12px 16px;
+      }
+
+      /* Floating action button */
+      .fab {
+        display: flex !important;
+        position: fixed;
+        bottom: 24px;
+        right: 20px;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        box-shadow: 0 4px 16px rgba(0,113,227,0.4);
+        cursor: pointer;
+        align-items: center;
+        justify-content: center;
+        z-index: 150;
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+
+      .fab:active {
+        transform: scale(0.92);
+        box-shadow: 0 2px 8px rgba(0,113,227,0.3);
+      }
+
+      .fab svg {
+        width: 26px;
+        height: 26px;
+      }
+
+      /* Editor mobile */
+      .editor-header {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .editor-toolbar {
+        padding: 6px 12px;
+        gap: 3px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .toolbar-btn {
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+      }
+
+      .editor-body {
+        padding: 16px;
+        gap: 12px;
+      }
+
+      .field-title {
+        font-size: 1.15rem;
+      }
+
+      .field-category {
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .cat-chip {
+        padding: 6px 14px;
+        font-size: 0.8rem;
+      }
+
+      .field-content {
+        min-height: 200px;
+        font-size: 1rem;
+        line-height: 1.8;
+      }
+
+      .editor-footer {
+        padding: 10px 16px;
+      }
+
+      .btn-close-editor {
+        width: 36px !important;
+        height: 36px !important;
+      }
     }
 
     @media (max-width: 480px) {
-      .note-card { padding: 14px; }
-      .editor-body { padding: 16px; }
+      .main-header { padding: 8px 12px; }
+      .notes-list { padding: 10px 12px; padding-bottom: 80px; }
+      .note-card { padding: 14px; border-radius: 12px; }
+      .note-card-title { font-size: 0.95rem; }
+      .editor-body { padding: 14px; }
+      .cat-chip { padding: 5px 10px; font-size: 0.75rem; }
     }
+
+    /* FAB hidden on desktop */
+    .fab { display: none; }
 
     /* ========== WORD COUNT BAR ========== */
     .word-count-bar {
@@ -904,6 +1056,14 @@
       </div>
     </div>
   </div>
+
+  <!-- FAB (Mobile) -->
+  <button class="fab" onclick="createNewNote()" aria-label="Nueva nota">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <line x1="12" y1="5" x2="12" y2="19"/>
+      <line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  </button>
 
   <!-- TOAST CONTAINER -->
   <div class="toast-container" id="toastContainer"></div>
