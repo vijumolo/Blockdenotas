@@ -923,8 +923,10 @@
       document.documentElement.setAttribute('data-theme', theme);
       updateThemeIcon();
 
-      if (notes.length === 0) {
+      const samplesShown = localStorage.getItem('freenotes-samples-shown');
+      if (notes.length === 0 && !samplesShown) {
         createSampleNotes();
+        localStorage.setItem('freenotes-samples-shown', '1');
       }
 
       renderNotes();
